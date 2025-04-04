@@ -10,7 +10,7 @@ pipeline {
         stage('Clone Frontend Repo') {
             steps {
                 dir('frontend') {
-                    git url: 'https://github.com/your-org/frontend-repo.git', branch: 'master'
+                    git url: 'https://github.com/pablodcruz/react-todo-app.git', branch: 'master'
                 }
             }
         }
@@ -35,7 +35,7 @@ pipeline {
         stage('Copy Frontend into Spring Static Folder') {
             steps {
                 sh 'rm -rf backend/src/main/resources/static/*'
-                sh 'cp -r frontend/build/* backend/src/main/resources/static/'
+                sh 'cp -r frontend/dist/* backend/src/main/resources/static/'
             }
         }
 
@@ -66,7 +66,7 @@ pipeline {
         }
         stage('Done') {
             steps {
-                echo "✅ App deployed successfully at http://<ec2-ip>:8080"
+                echo "✅ App deployed successfully at http://107.23.178.208:8080"
             }
         }
 
