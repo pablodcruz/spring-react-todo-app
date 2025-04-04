@@ -10,7 +10,7 @@ pipeline {
         stage('Clone Frontend Repo') {
             steps {
                 dir('frontend') {
-                    git url: 'https://github.com/pablodcruz/react-todo-app.git', branch: 'master'
+                    git url: 'https://github.com/pablodcruz/react-todo-app.git', branch: 'main'
                 }
             }
         }
