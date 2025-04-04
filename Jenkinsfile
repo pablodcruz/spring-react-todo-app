@@ -2,54 +2,73 @@ pipeline {
     agent any
 
     environment {
-        EC2_USER = 'ec2-user'
-        EC2_HOST = 'your-ec2-ip'
-        PRIVATE_KEY = credentials('ec2-ssh-key')
-        JAR_NAME = 'SpringTodoApp-0.0.1-SNAPSHOT.jar'
-        IMAGE_NAME = 'spring-todo-app'
-        CONTAINER_NAME = 'spring-todo-container'
+        IMAGE_NAME = "spring-todo-app"
+        CONTAINER_NAME = "spring-todo-container"
     }
 
     stages {
-        stage('Clone Repo') {
+        stage('Clone Frontend Repo') {
             steps {
-                git branch: 'main', url: 'https://github.com/your-org/your-repo.git'
+                dir('frontend') {
+                    git url: 'https://github.com/your-org/frontend-repo.git', branch: 'master'
+                }
             }
         }
 
-        stage('Build JAR with Maven') {
+        stage('Clone Backend Repo') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                dir('backend') {
+                    git url: 'https://github.com/pablodcruz/spring-react-todo-app.git', branch: 'master'
+                }
+            }
+        }
+
+        stage('Build React App') {
+            steps {
+                dir('frontend') {
+                    sh 'npm install'
+                    sh 'npm run build'
+                }
+            }
+        }
+
+        stage('Copy Frontend into Spring Static Folder') {
+            steps {
+                sh 'rm -rf backend/src/main/resources/static/*'
+                sh 'cp -r frontend/build/* backend/src/main/resources/static/'
+            }
+        }
+
+        stage('Build Spring Boot JAR') {
+            steps {
+                dir('backend') {
+                    sh 'mvn clean package -DskipTests'
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $IMAGE_NAME .'
+                dir('backend') {
+                    sh 'docker build -t $IMAGE_NAME .'
+                }
             }
         }
 
-        stage('Save Docker Image & SCP to EC2') {
+        stage('Deploy Container') {
             steps {
                 sh '''
-                docker save $IMAGE_NAME | bzip2 > image.tar.bz2
-                scp -i $PRIVATE_KEY image.tar.bz2 $EC2_USER@$EC2_HOST:~/
+                docker stop $CONTAINER_NAME || true
+                docker rm $CONTAINER_NAME || true
+                docker run -d -p 8080:8080 --name $CONTAINER_NAME $IMAGE_NAME
                 '''
+            }
+        }
+        stage('Done') {
+            steps {
+                echo "✅ App deployed successfully at http://<ec2-ip>:8080"
             }
         }
 
-        stage('Deploy to EC2') {
-            steps {
-                sh '''
-                ssh -i $PRIVATE_KEY $EC2_USER@$EC2_HOST 'bash -s' <<'ENDSSH'
-                    docker stop $CONTAINER_NAME || true
-                    docker rm $CONTAINER_NAME || true
-                    bunzip2 -f image.tar.bz2
-                    docker load < image.tar
-                    docker run -d -p 8080:8080 --name $CONTAINER_NAME $IMAGE_NAME
-                ENDSSH
-                '''
-            }
-        }
     }
 }
