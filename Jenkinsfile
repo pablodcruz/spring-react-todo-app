@@ -51,6 +51,9 @@ pipeline {
 
         stage('Inject application.properties') {
             steps {
+                // Fix permissions in case directory is owned by root
+                sh 'chmod -R u+w backend/src/main/resources/ || true'
+
                 withCredentials([file(credentialsId: 'spring-boot-config', variable: 'CONFIG_FILE')]) {
                     sh 'cp $CONFIG_FILE backend/src/main/resources/application.properties'
                 }
@@ -78,10 +81,10 @@ pipeline {
             }
         }
 
-stage('Deploy Docker Container on EC2') {
-    steps {
-        withCredentials([file(credentialsId: 'ec2-ssh-key', variable: 'EC2_KEY')]) {
-            sh '''#!/bin/bash
+        stage('Deploy Docker Container on EC2') {
+            steps {
+                withCredentials([file(credentialsId: 'ec2-ssh-key', variable: 'EC2_KEY')]) {
+                    sh '''#!/bin/bash
 ssh -o StrictHostKeyChecking=no -i $EC2_KEY ec2-user@18.205.17.221 <<EOF
     echo "🔎 Checking for process using port 8080..."
     PID=\$(lsof -t -i:8080 2>/dev/null)
@@ -98,11 +101,9 @@ ssh -o StrictHostKeyChecking=no -i $EC2_KEY ec2-user@18.205.17.221 <<EOF
     docker run -d -p 8080:8080 --name spring-todo-container spring-todo-app
 EOF
 '''
+                }
+            }
         }
-    }
-}
-
-
 
         stage('Done') {
             steps {
